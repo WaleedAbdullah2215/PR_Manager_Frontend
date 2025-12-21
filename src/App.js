@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bar } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { api } from './api';
+import WelcomePage from './components/WelcomePage';
 
-// Register Chart.js components
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const App = () => {
+  const [userMode, setUserMode] = useState(null); // null | 'user' | 'visitor'
+  const [isVisitorMode, setIsVisitorMode] = useState(false);
   const [prs, setPrs] = useState([]);
   const [activePR, setActivePR] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,7 +32,6 @@ const App = () => {
     dueDate: '',
   });
 
-  // PR Templates for real estate and office supplies
   const templates = [
     { id: 'T1', title: 'Office Furniture', description: 'Chairs, desks, and other office furniture', category: 'Office', priority: 'medium' },
     { id: 'T2', title: 'Construction Materials', description: 'Cement, steel, bricks for construction', category: 'Real Estate', priority: 'high' },
@@ -39,15 +40,88 @@ const App = () => {
     { id: 'T5', title: 'IT Equipment', description: 'Computers, printers, networking gear', category: 'Office', priority: 'high' },
   ];
 
- // Initialize - Load PRs from backend
 useEffect(() => {
-  loadPRs();
-  loadActivities();
-  addToast(`Welcome back, Mohammad Amir Khan!`, 'info');
+  if (userMode === 'user') {
+    loadPRs();
+    loadActivities();
+    addToast(`Welcome back, Mohammad Amir Khan!`, 'info');
+  } else if (userMode === 'visitor') {
+    setPrs(SAMPLE_PRS);
+    addToast(' Viewing in DEMO MODE - No changes will be saved', 'info');
+  }
+}, [userMode]);
+const getInitialSteps = () => [
+    { id: 1, name: 'Request Prepared', description: 'Draft PR details', completed: false, completedAt: null },
+    { id: 2, name: 'HOD Approval', description: 'Department head approval', completed: false, completedAt: null },
+    { id: 3, name: 'Purchase Approval', description: 'Purchase department review', completed: false, completedAt: null },
+    { id: 4, name: 'RFQ Generated', description: 'Request for Quotation created', completed: false, completedAt: null },
+    { id: 5, name: 'Supplier Extracted', description: 'Supplier list prepared', completed: false, completedAt: null },
+    { id: 6, name: 'RFQs Sent', description: 'RFQs sent to suppliers', completed: false, completedAt: null },
+    { id: 7, name: 'Quotations Received', description: 'Supplier quotations collected', completed: false, completedAt: null },
+    { id: 8, name: 'Comparison Report', description: 'Quotation comparison prepared', completed: false, completedAt: null },
+    { id: 9, name: 'Comparison Approved', description: 'Comparison approved by HOD', completed: false, completedAt: null },
+    { id: 10, name: 'PO Created', description: 'Purchase Order issued', completed: false, completedAt: null },
+    { id: 11, name: 'Delivery Received', description: 'Items received from supplier', completed: false, completedAt: null },
+    { id: 12, name: 'Delivery Verified', description: 'Delivery verified & GRN created', completed: false, completedAt: null },
+  ];
 
-}, []);
+const SAMPLE_PRS = [
+    {
+      id: 'SAMPLE-001',
+      title: 'Office Furniture Setup',
+      description: 'Arrange new desks and chairs for the office space',
+      priority: 'high',
+      category: 'Office',
+      dueDate: '2025-01-15',
+      status: 'in-progress',
+      createdAt: new Date('2025-01-01'),
+      assignee: 'Mohammad Amir Khan',
+      steps: getInitialSteps().map((step, idx) => ({
+        ...step,
+        completed: idx < 8,
+        completedAt: idx < 8 ? new Date(Date.now() - (8-idx) * 86400000) : null
+      }))
+    },
+    {
+      id: 'SAMPLE-002',
+      title: 'IT Equipment Upgrade',
+      description: 'Replace old computers and set up new workstations',
+      priority: 'medium',
+      category: 'IT',
+      dueDate: '2025-01-20',
+      status: 'in-progress',
+      createdAt: new Date('2025-01-03'),
+      assignee: 'Mohammad Amir Khan',
+      steps: getInitialSteps().map((step, idx) => ({
+        ...step,
+        completed: idx < 4,
+        completedAt: idx < 4 ? new Date(Date.now() - (4-idx) * 86400000) : null
+      }))
+    },
+    {
+      id: 'SAMPLE-003',
+      title: 'Property Maintenance',
+      description: 'Regular maintenance and repairs for the building',
+      priority: 'low',
+      category: 'Real Estate',
+      dueDate: '2025-02-01',
+      status: 'completed',
+      createdAt: new Date('2024-12-20'),
+      assignee: 'Mohammad Amir Khan',
+      steps: getInitialSteps().map(step => ({
+        ...step,
+        completed: true,
+        completedAt: new Date(Date.now() - Math.random() * 10 * 86400000)
+      }))
+    }
+  ];
 
 const loadPRs = async () => {
+  if (isVisitorMode) {
+    setPrs(SAMPLE_PRS);
+    return;
+  }
+  
   try {
     const response = await api.getAllPRs();
     if (response.success) {
@@ -97,8 +171,6 @@ const loadActivities = async () => {
   }
 };
 
-
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'n' && !showCreateModal && !showTemplates) {
@@ -114,20 +186,7 @@ const loadActivities = async () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showCreateModal, showTemplates]);
 
-  const getInitialSteps = () => [
-    { id: 1, name: 'Request Prepared', description: 'Draft PR details', completed: false, completedAt: null },
-    { id: 2, name: 'HOD Approval', description: 'Department head approval', completed: false, completedAt: null },
-    { id: 3, name: 'Purchase Approval', description: 'Purchase department review', completed: false, completedAt: null },
-    { id: 4, name: 'RFQ Generated', description: 'Request for Quotation created', completed: false, completedAt: null },
-    { id: 5, name: 'Supplier Extracted', description: 'Supplier list prepared', completed: false, completedAt: null },
-    { id: 6, name: 'RFQs Sent', description: 'RFQs sent to suppliers', completed: false, completedAt: null },
-    { id: 7, name: 'Quotations Received', description: 'Supplier quotations collected', completed: false, completedAt: null },
-    { id: 8, name: 'Comparison Report', description: 'Quotation comparison prepared', completed: false, completedAt: null },
-    { id: 9, name: 'Comparison Approved', description: 'Comparison approved by HOD', completed: false, completedAt: null },
-    { id: 10, name: 'PO Created', description: 'Purchase Order issued', completed: false, completedAt: null },
-    { id: 11, name: 'Delivery Received', description: 'Items received from supplier', completed: false, completedAt: null },
-    { id: 12, name: 'Delivery Verified', description: 'Delivery verified & GRN created', completed: false, completedAt: null },
-  ];
+  
 
   const formatDate = (date) => {
     if (!date) return '';
@@ -152,10 +211,35 @@ const loadActivities = async () => {
     setActivityLog(prev => [
       { id: Date.now(), action, details, timestamp: new Date() },
       ...prev,
-    ].slice(0, 50)); // Keep first 50 activities
+    ].slice(0, 50)); 
+  };
+
+  const handleEnter = (mode) => {
+    setUserMode(mode);
+    setIsVisitorMode(mode === 'visitor');
+  };
+  const handleLogout = () => {
+    setUserMode(null);
+    setIsVisitorMode(false);
+    setPrs([]);
+    setActivityLog([]);
+    setActivePR(null);
   };
 
   const createPR = async (newPR) => {
+  if (isVisitorMode) {
+    addToast('⚠️ Demo mode: Changes are not saved', 'warning');
+    const demoPR = {
+      ...newPR,
+      id: `DEMO-${Date.now()}`,
+      status: 'in-progress',
+      createdAt: new Date(),
+      steps: getInitialSteps()
+    };
+    setPrs(prev => [demoPR, ...prev]);
+    setShowCreateModal(false);
+    return;
+  }
   try {
     const response = await api.createPR(newPR);
     if (response.success) {
@@ -182,7 +266,15 @@ const loadActivities = async () => {
   };
 
   const updatePR = async (prId, updates) => {
-  try {
+   if (isVisitorMode) {
+    addToast('⚠️ Demo mode: Changes are not saved', 'warning');
+    setPrs(prev => prev.map(pr => pr.id === prId ? { ...pr, ...updates } : pr));
+    if (activePR?.id === prId) {
+      setActivePR({ ...activePR, ...updates });
+    }
+    return;
+  }
+    try {
     const response = await api.updatePR(prId, updates);
     if (response.success) {
       setPrs(prev => prev.map(pr => pr.id === prId ? response.data : pr));
@@ -207,7 +299,11 @@ const loadActivities = async () => {
 
   const deletePR = async () => {
   if (!prToDelete) return;
-  
+  if (isVisitorMode) {
+    addToast('⚠️ Demo mode: Cannot delete in demo mode', 'warning');
+    setShowDeleteConfirm(false);
+    return;
+  }
   try {
     const response = await api.deletePR(prToDelete);
     if (response.success) {
@@ -234,7 +330,6 @@ const loadActivities = async () => {
     setPrs(prev => prev.map(pr => {
       if (pr.id !== prId) return pr;
       
-      // Check if previous steps are completed
       const currentStepIndex = pr.steps.findIndex(s => s.id === stepId);
       const prevSteps = pr.steps.slice(0, currentStepIndex);
       const allPrevCompleted = prevSteps.every(s => s.completed);
@@ -255,7 +350,6 @@ const loadActivities = async () => {
   
       const allCompleted = updatedSteps.every(s => s.completed);
       
-      // Add activity only when marking as completed
       if (updates.completed && !pr.steps.find(s => s.id === stepId).completed) {
         const stepName = pr.steps.find(s => s.id === stepId).name;
         addActivity('Completed Step', `PR ${pr.id}: ${stepName}`);
@@ -376,6 +470,10 @@ const loadActivities = async () => {
     return new Date(b[sortBy]) - new Date(a[sortBy]);
   });
 
+   if (!userMode) {
+    return <WelcomePage onEnter={handleEnter} />;
+  }
+
   return (
     <div className={`app-container ${darkMode ? 'dark' : ''}`}>
       <div className="toast-container">
@@ -395,13 +493,26 @@ const loadActivities = async () => {
         </AnimatePresence>
       </div>
 
+      
       <div className="app-content">
+        
         <header className="app-header">
           <div>
             <h1 className="app-title">PR Flow Manager</h1>
-            <p className="app-subtitle">Personalized for Mohammad Amir Khan</p>
+            <p className="app-subtitle">
+              Personalized for Mohammad Amir Khan
+              {isVisitorMode && <span className="demo-badge-inline"> • DEMO MODE</span>}
+            </p>
           </div>
           <div className="header-controls">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="export-button"
+            >
+              🚪 Logout
+            </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -654,7 +765,6 @@ const PRDetailView = ({
   });
 
   const handleStepClick = (step) => {
-    // Check if previous steps are completed
     const currentStepIndex = pr.steps.findIndex(s => s.id === step.id);
     const prevSteps = pr.steps.slice(0, currentStepIndex);
     const allPrevCompleted = prevSteps.every(s => s.completed);
