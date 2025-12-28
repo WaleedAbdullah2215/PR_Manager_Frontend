@@ -58,11 +58,12 @@ const getInitialSteps = () => [
     { id: 5, name: 'Supplier Extracted', description: 'Supplier list prepared', completed: false, completedAt: null },
     { id: 6, name: 'RFQs Sent', description: 'RFQs sent to suppliers', completed: false, completedAt: null },
     { id: 7, name: 'Quotations Received', description: 'Supplier quotations collected', completed: false, completedAt: null },
-    { id: 8, name: 'Comparison Report', description: 'Quotation comparison prepared', completed: false, completedAt: null },
+    { id: 8, name: 'Quotations Analysis', description: 'Analyze and compare quotations', completed: false, completedAt: null },
     { id: 9, name: 'Comparison Approved', description: 'Comparison approved by HOD', completed: false, completedAt: null },
-    { id: 10, name: 'PO Created', description: 'Purchase Order issued', completed: false, completedAt: null },
-    { id: 11, name: 'Delivery Received', description: 'Items received from supplier', completed: false, completedAt: null },
-    { id: 12, name: 'Delivery Verified', description: 'Delivery verified & GRN created', completed: false, completedAt: null },
+    { id: 10, name: 'Approved to Order', description: 'Order approved by higher authorities', completed: false, completedAt: null },
+    { id: 11, name: 'PO Created', description: 'Purchase Order issued', completed: false, completedAt: null },
+    { id: 12, name: 'Delivery Received', description: 'Items received from supplier', completed: false, completedAt: null },
+    { id: 13, name: 'GRN Created', description: 'Goods Receipt Note created', completed: false, completedAt: null },
   ];
 
 const SAMPLE_PRS = [
@@ -326,44 +327,71 @@ const loadActivities = async () => {
   }
 };  
 
-  const updateStep = (prId, stepId, updates) => {
-    setPrs(prev => prev.map(pr => {
-      if (pr.id !== prId) return pr;
-      
-      const currentStepIndex = pr.steps.findIndex(s => s.id === stepId);
-      const prevSteps = pr.steps.slice(0, currentStepIndex);
-      const allPrevCompleted = prevSteps.every(s => s.completed);
-      
-      if (!allPrevCompleted && updates.completed) {
-        addToast(`Complete previous steps first`, 'warning');
-        return pr;
-      }
-  
-      const updatedSteps = pr.steps.map(step => {
-        if (step.id !== stepId) return step;
-        return { 
-          ...step, 
-          ...updates,
-          completedAt: updates.completed ? new Date() : null
-        };
-      });
-  
-      const allCompleted = updatedSteps.every(s => s.completed);
-      
-      if (updates.completed && !pr.steps.find(s => s.id === stepId).completed) {
-        const stepName = pr.steps.find(s => s.id === stepId).name;
-        addActivity('Completed Step', `PR ${pr.id}: ${stepName}`);
-      }
-  
-      return {
-        ...pr,
-        steps: updatedSteps,
-        status: allCompleted ? 'completed' : 'in-progress',
-      };
-    }));
+  const updateStep = async (prId, stepId, updates) => {
+    if (isVisitorMode) {
+      addToast('⚠️ Demo mode: Changes are not saved', 'warning');
+      setPrs(prev => prev.map(pr => {
+        if (pr.id !== prId) return pr;
+        
+        const currentStepIndex = pr.steps.findIndex(s => s.id === stepId);
+        const prevSteps = pr.steps.slice(0, currentStepIndex);
+        const allPrevCompleted = prevSteps.every(s => s.completed);
+        
+        if (!allPrevCompleted && updates.completed) {
+          addToast(`Complete previous steps first`, 'warning');
+          return pr;
+        }
     
-    if (updates.completed) {
-      addToast(`Step ${stepId} completed`, 'success');
+        const updatedSteps = pr.steps.map(step => {
+          if (step.id !== stepId) return step;
+          return { 
+            ...step, 
+            ...updates,
+            completedAt: updates.completed ? new Date() : null
+          };
+        });
+    
+        const allCompleted = updatedSteps.every(s => s.completed);
+        
+        if (updates.completed && !pr.steps.find(s => s.id === stepId).completed) {
+          const stepName = pr.steps.find(s => s.id === stepId).name;
+          addActivity('Completed Step', `PR ${pr.id}: ${stepName}`);
+        }
+    
+        return {
+          ...pr,
+          steps: updatedSteps,
+          status: allCompleted ? 'completed' : 'in-progress',
+        };
+      }));
+      
+      if (updates.completed) {
+        addToast(`Step ${stepId} completed`, 'success');
+      }
+      return;
+    }
+
+    try {
+      const response = await api.updatePRStep(prId, stepId, updates);
+      if (response.success) {
+        setPrs(prev => prev.map(pr => pr.id === prId ? response.data : pr));
+        if (activePR?.id === prId) {
+          setActivePR(response.data);
+        }
+        
+        if (updates.completed) {
+          const stepName = response.data.steps.find(s => s.id === stepId).name;
+          addToast(`Step completed: ${stepName}`, 'success');
+        }
+        
+        // Refresh activities to show the logged activity
+        loadActivities();
+      } else {
+        addToast(response.message || 'Failed to update step', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating step:', error);
+      addToast('Failed to update step - check backend connection', 'error');
     }
   };
 
@@ -814,6 +842,36 @@ const PRDetailView = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
+      {/* Floating Action Bar */}
+      <div className="floating-action-bar">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onBack}
+          className="floating-back-button"
+        >
+          ← Back
+        </motion.button>
+        <div className="floating-actions">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowEditModal(true)}
+            className="floating-edit-button"
+          >
+            Edit
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onDeletePR(pr.id)}
+            className="floating-delete-button"
+          >
+            Delete
+          </motion.button>
+        </div>
+      </div>
+
       <div className="detail-header">
         <motion.button
           whileHover={{ scale: 1.05 }}
