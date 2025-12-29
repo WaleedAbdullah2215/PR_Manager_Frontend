@@ -8,7 +8,7 @@ import WelcomePage from './components/WelcomePage';
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const App = () => {
-  const [userMode, setUserMode] = useState(null); // null | 'user' | 'visitor'
+  const [userMode, setUserMode] = useState(null);
   const [isVisitorMode, setIsVisitorMode] = useState(false);
   const [prs, setPrs] = useState([]);
   const [activePR, setActivePR] = useState(null);
@@ -384,7 +384,6 @@ const loadActivities = async () => {
           addToast(`Step completed: ${stepName}`, 'success');
         }
         
-        // Refresh activities to show the logged activity
         loadActivities();
       } else {
         addToast(response.message || 'Failed to update step', 'error');
@@ -429,7 +428,7 @@ const loadActivities = async () => {
           durations.push({
             step: step.id,
             name: step.name,
-            duration: (currentDate - prevStepDate) / (1000 * 60 * 60) // Hours
+            duration: (currentDate - prevStepDate) / (1000 * 60 * 60)//hoursss
           });
         }
         prevDate = currentDate;
@@ -791,6 +790,17 @@ const PRDetailView = ({
     category: pr.category,
     dueDate: pr.dueDate ? new Date(pr.dueDate).toISOString().split('T')[0] : '',
   });
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setIsScrolled(scrollTop > 150);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleStepClick = (step) => {
     const currentStepIndex = pr.steps.findIndex(s => s.id === step.id);
@@ -842,8 +852,7 @@ const PRDetailView = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Floating Action Bar */}
-      <div className="floating-action-bar">
+      <div className={`floating-action-bar ${isScrolled ? 'visible' : ''}`}>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -872,7 +881,7 @@ const PRDetailView = ({
         </div>
       </div>
 
-      <div className="detail-header">
+      <div className={`detail-header ${isScrolled ? 'scrolled' : ''}`}>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

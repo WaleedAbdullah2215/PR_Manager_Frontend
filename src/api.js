@@ -1,11 +1,11 @@
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
-export const api = {
-  // PR endpoints
+export const api = 
+{
   getAllPRs: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const response = await fetch(`${API_URL}/prs?${queryString}`); // ← Fixed!
+      const response = await fetch(`${API_URL}/prs?${queryString}`);
       const data = await response.json();
       return data;
     } catch (error) {
@@ -94,7 +94,6 @@ export const api = {
     }
   },
 
-  // Activity endpoints
   getAllActivities: async (limit = 50) => {
     try {
       const response = await fetch(`${API_URL}/activities?limit=${limit}`);
