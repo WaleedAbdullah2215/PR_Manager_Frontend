@@ -17,6 +17,7 @@ const App = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [toasts, setToasts] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
@@ -27,17 +28,17 @@ const App = () => {
     title: '',
     description: '',
     priority: 'medium',
-    category: 'Office',
+    category: 'FM/Maintenance',
     assignee: 'Mohammad Amir Khan',
     dueDate: '',
   });
 
   const templates = [
-    { id: 'T1', title: 'Office Furniture', description: 'Chairs, desks, and other office furniture', category: 'Office', priority: 'medium' },
-    { id: 'T2', title: 'Construction Materials', description: 'Cement, steel, bricks for construction', category: 'Real Estate', priority: 'high' },
-    { id: 'T3', title: 'Office Supplies', description: 'Pens, paper, stationery items', category: 'Office', priority: 'low' },
-    { id: 'T4', title: 'Property Maintenance', description: 'Tools and materials for property upkeep', category: 'Real Estate', priority: 'medium' },
-    { id: 'T5', title: 'IT Equipment', description: 'Computers, printers, networking gear', category: 'Office', priority: 'high' },
+    { id: 'T1', title: 'Office Furniture', description: 'Chairs, desks, and other office furniture', category: 'FM/Maintenance', priority: 'medium' },
+    { id: 'T2', title: 'Construction Materials', description: 'Cement, steel, bricks for construction', category: 'Remote Areas', priority: 'high' },
+    { id: 'T3', title: 'Office Supplies', description: 'Pens, paper, stationery items', category: 'Others', priority: 'low' },
+    { id: 'T4', title: 'Property Maintenance', description: 'Tools and materials for property upkeep', category: 'FM/Maintenance', priority: 'medium' },
+    { id: 'T5', title: 'IT Equipment', description: 'Computers, printers, networking gear', category: 'IT', priority: 'high' },
   ];
 
 useEffect(() => {
@@ -72,7 +73,7 @@ const SAMPLE_PRS = [
       title: 'Office Furniture Setup',
       description: 'Arrange new desks and chairs for the office space',
       priority: 'high',
-      category: 'Office',
+      category: 'Consultancy',
       dueDate: '2025-01-15',
       status: 'in-progress',
       createdAt: new Date('2025-01-01'),
@@ -142,7 +143,7 @@ const loadPRs = async () => {
         priority: 'medium',
         assignee: 'Mohammad Amir Khan',
         dueDate: new Date(Date.now() + 86400000 * 7),
-        category: 'Office',
+        category: 'Consultancy',
       },
       {
         id: 'PR-002',
@@ -163,7 +164,7 @@ const loadPRs = async () => {
 
 const loadActivities = async () => {
   try {
-    const response = await api.getAllActivities(50);
+    const response = await api.getAllActivities(1000, 1); // Get up to 1000 activities for client-side pagination
     if (response.success) {
       setActivityLog(response.data);
     }
@@ -253,7 +254,7 @@ const loadActivities = async () => {
         title: '',
         description: '',
         priority: 'medium',
-        category: 'Office',
+        category: 'FM/Maintenance',
         assignee: 'Mohammad Amir Khan',
         dueDate: '',
       });
@@ -484,11 +485,12 @@ const loadActivities = async () => {
   };
 
   const filteredPRs = prs.filter(pr => {
-    const matchesSearch = pr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pr.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filter === 'all' || pr.status === filter;
-    return matchesSearch && matchesStatus;
+  const matchesSearch = pr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    pr.category.toLowerCase().includes(searchTerm.toLowerCase());
+  const matchesStatus = filter === 'all' || pr.status === filter;
+  const matchesDepartment = departmentFilter === 'all' || pr.category === departmentFilter;
+  return matchesSearch && matchesStatus && matchesDepartment;
   }).sort((a, b) => {
     if (sortBy === 'priority') {
       const priorities = { high: 3, medium: 2, low: 1 };
@@ -601,6 +603,26 @@ const loadActivities = async () => {
             </select>
           </div>
           <div className="filter-group">
+          <label htmlFor="department" className="filter-label">Department</label>
+          <select
+            id="department"
+            className="filter-select"
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+          >
+            <option value="all">All Departments</option>
+            <option value="FM/Maintenance">FM/Maintenance</option>
+            <option value="Remote Areas">Remote Areas</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Leasing">Leasing</option>
+            <option value="HR">HR</option>
+            <option value="IT">IT</option>
+            <option value="Finance">Finance</option>
+            <option value="Consultancy">Consultancy</option>
+            <option value="Others">Others</option>
+          </select>
+          </div>
+          <div className="filter-group">
             <label htmlFor="sort" className="filter-label">Sort By</label>
             <select
               id="sort"
@@ -680,6 +702,9 @@ const loadActivities = async () => {
           </motion.div>
         )}
 
+        {/* Alerts Section */}
+        <AlertsSection prs={filteredPRs} formatDate={formatDate} />
+
         <ActivityLog activities={activityLog} formatDate={formatDate} />
 
         <AnimatePresence>
@@ -724,23 +749,45 @@ const loadActivities = async () => {
   );
 };
 
-const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, index }) => (
-  <motion.div
-    className="pr-card"
-    onClick={onClick}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, scale: 0.8 }}
-    transition={{ delay: index * 0.1, duration: 0.3 }}
-    whileHover={{ scale: 1.03, boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)' }}
-  >
-    <div className="pr-card-content">
-      <div className="pr-card-header">
-        <h3 className="pr-id">{pr.id}</h3>
-        <span className={`status-badge ${getStatusColor(pr.status)}`}>
-          {pr.status === 'in-progress' ? 'In Progress' : 'Completed'}
-        </span>
-      </div>
+const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, index }) => {
+  const now = new Date();
+  const dueDate = pr.dueDate ? new Date(pr.dueDate) : null;
+  const isOverdue = dueDate && dueDate < now && pr.status !== 'completed';
+  const isDueSoon = dueDate && dueDate >= now && dueDate <= new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)) && pr.status !== 'completed';
+  
+  let cardClass = 'pr-card';
+  if (isOverdue) cardClass += ' overdue';
+  else if (isDueSoon) cardClass += ' due-soon';
+
+  return (
+    <motion.div
+      className={cardClass}
+      onClick={onClick}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ delay: index * 0.1, duration: 0.3 }}
+      whileHover={{ scale: 1.03, boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)' }}
+    >
+      <div className="pr-card-content">
+        <div className="pr-card-header">
+          <h3 className="pr-id">{pr.id}</h3>
+          <div className="pr-card-badges">
+            {isOverdue && (
+              <span className="overdue-badge">
+                ⚠️ Overdue
+              </span>
+            )}
+            {isDueSoon && (
+              <span className="due-soon-badge">
+                ⏰ Due Soon
+              </span>
+            )}
+            <span className={`status-badge ${getStatusColor(pr.status)}`}>
+              {pr.status === 'in-progress' ? 'In Progress' : 'Completed'}
+            </span>
+          </div>
+        </div>
       <h4 className="pr-title">{pr.title}</h4>
       <p className="pr-description">{pr.description}</p>
       <div className="pr-meta">
@@ -766,7 +813,8 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
       <div className="pr-category">{pr.category}</div>
     </div>
   </motion.div>
-);
+  );
+};
 
 const PRDetailView = ({ 
   pr, 
@@ -837,7 +885,10 @@ const PRDetailView = ({
     }
     
     onUpdatePR(pr.id, {
-      ...editForm,
+      title: editForm.title,
+      description: editForm.description,
+      priority: editForm.priority,
+      category: editForm.category,
       dueDate,
     });
     setShowEditModal(false);
@@ -939,7 +990,8 @@ const PRDetailView = ({
           {pr.steps.map((step, index) => {
             const isCompleted = step.completed;
             const isNextToComplete = !isCompleted && 
-              (index === 0 || pr.steps[index-1].completed);
+              (index === 0 || pr.steps[index-1].completed) &&
+              pr.steps.slice(0, index).every(s => s.completed);
             
             return (
               <motion.div
@@ -1160,7 +1212,7 @@ const PRDetailView = ({
                   </select>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="edit-category" className="form-label">Category</label>
+                  <label htmlFor="edit-category" className="form-label">Department</label>
                   <select
                     id="edit-category"
                     name="category"
@@ -1168,10 +1220,15 @@ const PRDetailView = ({
                     value={editForm.category}
                     onChange={(e) => setEditForm({...editForm, category: e.target.value})}
                   >
-                    <option value="Office">Office</option>
-                    <option value="Real Estate">Real Estate</option>
+                    <option value="FM/Maintenance">FM/Maintenance</option>
+                    <option value="Remote Areas">Remote Areas</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Leasing">Leasing</option>
+                    <option value="HR">HR</option>
                     <option value="IT">IT</option>
-                    <option value="Maintenance">Maintenance</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Consultancy">Consultancy</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div className="form-group">
@@ -1305,7 +1362,7 @@ const CreatePRModal = ({ onClose, onCreate, darkMode, formData, setFormData }) =
             </select>
           </div>
           <div className="form-group">
-            <label htmlFor="category" className="form-label">Category</label>
+            <label htmlFor="category" className="form-label">Department</label>
             <select
               id="category"
               name="category"
@@ -1313,10 +1370,15 @@ const CreatePRModal = ({ onClose, onCreate, darkMode, formData, setFormData }) =
               value={formData.category}
               onChange={handleChange}
             >
-              <option value="Office">Office</option>
-              <option value="Real Estate">Real Estate</option>
+              <option value="FM/Maintenance">FM/Maintenance</option>
+              <option value="Remote Areas">Remote Areas</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Leasing">Leasing</option>
+              <option value="HR">HR</option>
               <option value="IT">IT</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="Finance">Finance</option>
+              <option value="Consultancy">Consultancy</option>
+              <option value="Others">Others</option>
             </select>
           </div>
           <div className="form-group">
@@ -1445,25 +1507,249 @@ const ConfirmationModal = ({ message, onConfirm, onCancel, darkMode }) => (
   </motion.div>
 );
 
-const ActivityLog = ({ activities, formatDate }) => (
-  <div className="activity-log">
-    <h4 className="activity-title">Activity Log</h4>
-    <div className="activity-list">
-      {activities.map(activity => (
+const ActivityLog = ({ activities, formatDate }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const activitiesPerPage = 10;
+  
+  const totalPages = Math.ceil(activities.length / activitiesPerPage);
+  const startIndex = (currentPage - 1) * activitiesPerPage;
+  const endIndex = startIndex + activitiesPerPage;
+  const currentActivities = activities.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+  };
+
+  const goToPrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  return (
+    <div className="activity-log">
+      <div 
+        className="activity-header" 
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <h4 className="activity-title">
+          📋 Activity Log ({activities.length} total)
+        </h4>
         <motion.div
-          key={activity.id}
-          className="activity-item"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="activity-toggle"
+          animate={{ rotate: isExpanded ? 180 : 0 }}
           transition={{ duration: 0.3 }}
         >
-          <span className="activity-action">{activity.action}</span>
-          <span className="activity-details">{activity.details}</span>
-          <span className="activity-timestamp">{formatDate(activity.timestamp)}</span>
+          ▼
         </motion.div>
-      ))}
+      </div>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            className="activity-content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="activity-list">
+              {currentActivities.map((activity, index) => (
+                <motion.div
+                  key={activity.id || index}
+                  className="activity-item"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <span className="activity-action">{activity.action}</span>
+                  <span className="activity-details">{activity.details}</span>
+                  <span className="activity-timestamp">{formatDate(activity.timestamp)}</span>
+                </motion.div>
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="activity-pagination">
+                <div className="pagination-info">
+                  Showing {startIndex + 1}-{Math.min(endIndex, activities.length)} of {activities.length} activities
+                </div>
+                <div className="pagination-controls">
+                  <button 
+                    className="pagination-btn" 
+                    onClick={goToPrevious}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div className="pagination-numbers">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          className={`pagination-number ${currentPage === pageNum ? 'active' : ''}`}
+                          onClick={() => goToPage(pageNum)}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button 
+                    className="pagination-btn" 
+                    onClick={goToNext}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  </div>
-);
+  );
+};
+
+const AlertsSection = ({ prs, formatDate }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const now = new Date();
+  const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+  
+  const overduePRs = prs.filter(pr => 
+    pr.dueDate && 
+    new Date(pr.dueDate) < now && 
+    pr.status !== 'completed'
+  );
+  
+  const dueSoonPRs = prs.filter(pr => 
+    pr.dueDate && 
+    new Date(pr.dueDate) >= now && 
+    new Date(pr.dueDate) <= threeDaysFromNow && 
+    pr.status !== 'completed'
+  );
+
+  const totalAlerts = overduePRs.length + dueSoonPRs.length;
+
+  if (totalAlerts === 0) {
+    return null;
+  }
+
+  return (
+    <div className="alerts-section">
+      <div 
+        className="alerts-header" 
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <h4 className="alerts-title">
+          🚨 Alerts & Notifications ({totalAlerts})
+        </h4>
+        <motion.div
+          className="alerts-toggle"
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          ▼
+        </motion.div>
+      </div>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            className="alerts-content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {overduePRs.length > 0 && (
+              <div className="alert-group overdue">
+                <h5 className="alert-group-title">
+                  <span className="alert-icon">⚠️</span>
+                  Overdue PRs ({overduePRs.length})
+                </h5>
+                <div className="alert-list">
+                  {overduePRs.map(pr => (
+                    <motion.div
+                      key={pr.id}
+                      className="alert-item overdue-item"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="alert-content">
+                        <span className="alert-pr-id">{pr.id}</span>
+                        <span className="alert-pr-title">{pr.title}</span>
+                        <span className="alert-due-date">
+                          Due: {formatDate(pr.dueDate)}
+                        </span>
+                      </div>
+                      <div className="alert-badge overdue-badge">
+                        {Math.ceil((now - new Date(pr.dueDate)) / (1000 * 60 * 60 * 24))} days overdue
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {dueSoonPRs.length > 0 && (
+              <div className="alert-group due-soon">
+                <h5 className="alert-group-title">
+                  <span className="alert-icon">⏰</span>
+                  Due Soon ({dueSoonPRs.length})
+                </h5>
+                <div className="alert-list">
+                  {dueSoonPRs.map(pr => (
+                    <motion.div
+                      key={pr.id}
+                      className="alert-item due-soon-item"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="alert-content">
+                        <span className="alert-pr-id">{pr.id}</span>
+                        <span className="alert-pr-title">{pr.title}</span>
+                        <span className="alert-due-date">
+                          Due: {formatDate(pr.dueDate)}
+                        </span>
+                      </div>
+                      <div className="alert-badge due-soon-badge">
+                        {Math.ceil((new Date(pr.dueDate) - now) / (1000 * 60 * 60 * 24))} days left
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export { App };

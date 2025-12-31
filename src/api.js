@@ -94,9 +94,9 @@ export const api =
     }
   },
 
-  getAllActivities: async (limit = 50) => {
+  getAllActivities: async (limit = 50, page = 1) => {
     try {
-      const response = await fetch(`${API_URL}/activities?limit=${limit}`);
+      const response = await fetch(`${API_URL}/activities?limit=${limit}&page=${page}`);
       const data = await response.json();
       return data;
     } catch (error) {
