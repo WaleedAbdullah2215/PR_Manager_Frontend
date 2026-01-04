@@ -16,17 +16,20 @@ const App = () => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('in-progress');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [toasts, setToasts] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [prToDelete, setPrToDelete] = useState(null);
+  const [notebookNotes, setNotebookNotes] = useState('');
+  const [showAllPRs, setShowAllPRs] = useState(false);
   const [newPRForm, setNewPRForm] = useState({
     id: '',
     title: '',
     description: '',
+    rfqNumber: '',
     priority: 'medium',
     category: 'FM/Maintenance',
     assignee: 'Mohammad Amir Khan',
@@ -52,9 +55,9 @@ useEffect(() => {
   }
 }, [userMode]);
 const getInitialSteps = () => [
-    { id: 1, name: 'Request Prepared', description: 'Draft PR details', completed: false, completedAt: null },
-    { id: 2, name: 'HOD Approval', description: 'Department head approval', completed: false, completedAt: null },
-    { id: 3, name: 'Purchase Approval', description: 'Purchase department review', completed: false, completedAt: null },
+    { id: 1, name: 'Request Prepared', description: 'Draft PR details', completed: true, completedAt: new Date() },
+    { id: 2, name: 'HOD Approval', description: 'Department head approval', completed: true, completedAt: new Date() },
+    { id: 3, name: 'Purchase Approval', description: 'Purchase department review', completed: true, completedAt: new Date() },
     { id: 4, name: 'RFQ Generated', description: 'Request for Quotation created', completed: false, completedAt: null },
     { id: 5, name: 'Supplier Extracted', description: 'Supplier list prepared', completed: false, completedAt: null },
     { id: 6, name: 'RFQs Sent', description: 'RFQs sent to suppliers', completed: false, completedAt: null },
@@ -72,8 +75,9 @@ const SAMPLE_PRS = [
       id: 'SAMPLE-001',
       title: 'Office Furniture Setup',
       description: 'Arrange new desks and chairs for the office space',
+      rfqNumber: 'RFQ-2025-001',
       priority: 'high',
-      category: 'Consultancy',
+      category: 'FM/Maintenance',
       dueDate: '2025-01-15',
       status: 'in-progress',
       createdAt: new Date('2025-01-01'),
@@ -88,6 +92,7 @@ const SAMPLE_PRS = [
       id: 'SAMPLE-002',
       title: 'IT Equipment Upgrade',
       description: 'Replace old computers and set up new workstations',
+      rfqNumber: 'RFQ-2025-002',
       priority: 'medium',
       category: 'IT',
       dueDate: '2025-01-20',
@@ -104,8 +109,9 @@ const SAMPLE_PRS = [
       id: 'SAMPLE-003',
       title: 'Property Maintenance',
       description: 'Regular maintenance and repairs for the building',
+      rfqNumber: 'RFQ-2024-045',
       priority: 'low',
-      category: 'Real Estate',
+      category: 'FM/Maintenance',
       dueDate: '2025-02-01',
       status: 'completed',
       createdAt: new Date('2024-12-20'),
@@ -253,6 +259,7 @@ const loadActivities = async () => {
         id: '',
         title: '',
         description: '',
+        rfqNumber: '',
         priority: 'medium',
         category: 'FM/Maintenance',
         assignee: 'Mohammad Amir Khan',
@@ -485,19 +492,27 @@ const loadActivities = async () => {
   };
 
   const filteredPRs = prs.filter(pr => {
-  const matchesSearch = pr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pr.category.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesStatus = filter === 'all' || pr.status === filter;
-  const matchesDepartment = departmentFilter === 'all' || pr.category === departmentFilter;
-  return matchesSearch && matchesStatus && matchesDepartment;
+    const matchesSearch = pr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pr.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filter === 'all' || pr.status === filter;
+    return matchesSearch && matchesStatus;
   }).sort((a, b) => {
     if (sortBy === 'priority') {
       const priorities = { high: 3, medium: 2, low: 1 };
       return priorities[b.priority] - priorities[a.priority];
     }
+    if (sortBy === 'dueDate') {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    }
     return new Date(b[sortBy]) - new Date(a[sortBy]);
   });
+
+  const displayedPRs = showAllPRs ? filteredPRs : filteredPRs.slice(0, 9);
+  const hasMorePRs = filteredPRs.length > 9;
 
    if (!userMode) {
     return <WelcomePage onEnter={handleEnter} />;
@@ -524,7 +539,6 @@ const loadActivities = async () => {
 
       
       <div className="app-content">
-        
         <header className="app-header">
           <div>
             <h1 className="app-title">PR Flow Manager</h1>
@@ -597,8 +611,8 @@ const loadActivities = async () => {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             >
-              <option value="all">All PRs</option>
               <option value="in-progress">In Progress</option>
+              <option value="all">All PRs</option>
               <option value="completed">Completed</option>
             </select>
           </div>
@@ -661,8 +675,8 @@ const loadActivities = async () => {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            {filteredPRs.length > 0 ? (
-              filteredPRs.map((pr, index) => (
+            {displayedPRs.length > 0 ? (
+              displayedPRs.map((pr, index) => (
                 <PRCard
                   key={pr.id}
                   pr={pr}
@@ -702,7 +716,51 @@ const loadActivities = async () => {
           </motion.div>
         )}
 
-        {/* Alerts Section */}
+        {/* Show More/Less Controls - Only for PRs */}
+        {hasMorePRs && !showAllPRs && (
+          <div className="show-more-section">
+            <div className="blur-overlay"></div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAllPRs(true)}
+              className="show-more-button"
+            >
+              Show More ({filteredPRs.length - 9} more PRs)
+            </motion.button>
+          </div>
+        )}
+        
+        {showAllPRs && hasMorePRs && (
+          <div className="show-less-section">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAllPRs(false)}
+              className="show-less-button"
+            >
+              Show Less
+            </motion.button>
+          </div>
+        )}
+
+        {/* Notebook Section */}
+        <div className="notebook-section">
+          <div className="notebook">
+            <h4 className="notebook-title">📝 Notes & Reminders</h4>
+            <textarea
+              className="notebook-textarea"
+              placeholder="Click here to add your notes, reminders, or any important information..."
+              value={notebookNotes}
+              onChange={(e) => setNotebookNotes(e.target.value)}
+              rows={12}
+            />
+            <div className="notebook-footer">
+              <span className="notebook-count">{notebookNotes.length} characters</span>
+            </div>
+          </div>
+        </div>
+
         <AlertsSection prs={filteredPRs} formatDate={formatDate} />
 
         <ActivityLog activities={activityLog} formatDate={formatDate} />
@@ -771,7 +829,14 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
     >
       <div className="pr-card-content">
         <div className="pr-card-header">
-          <h3 className="pr-id">{pr.id}</h3>
+          <div className="pr-id-section">
+            <h3 className="pr-id">{pr.id}</h3>
+            {pr.rfqNumber && (
+              <div className="pr-rfq-inline">
+                <span className="rfq-label">RFQ:</span> {pr.rfqNumber}
+              </div>
+            )}
+          </div>
           <div className="pr-card-badges">
             {isOverdue && (
               <span className="overdue-badge">
@@ -794,7 +859,12 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
         <span className={`priority-badge ${getPriorityColor(pr.priority)}`}>
           {pr.priority.charAt(0).toUpperCase() + pr.priority.slice(1)}
         </span>
-        <span className="pr-date">{new Date(pr.createdAt).toLocaleDateString()}</span>
+        <div className="pr-dates">
+          <span className="pr-date">Created: {new Date(pr.createdAt).toLocaleDateString()}</span>
+          {pr.dueDate && (
+            <span className="pr-due-date">Due: {new Date(pr.dueDate).toLocaleDateString()}</span>
+          )}
+        </div>
       </div>
       <div className="pr-progress">
         <div className="progress-labels">
@@ -834,6 +904,7 @@ const PRDetailView = ({
     id: pr.id,
     title: pr.title,
     description: pr.description,
+    rfqNumber: pr.rfqNumber || '',
     priority: pr.priority,
     category: pr.category,
     dueDate: pr.dueDate ? new Date(pr.dueDate).toISOString().split('T')[0] : '',
@@ -969,6 +1040,11 @@ const PRDetailView = ({
           </div>
         </div>
         <p className="detail-description">{pr.description}</p>
+        {pr.rfqNumber && (
+          <div className="detail-rfq">
+            <span className="rfq-label">RFQ Number:</span> <span className="rfq-number">{pr.rfqNumber}</span>
+          </div>
+        )}
         <div className="detail-tags">
           <span className="detail-tag">Created: {formatDate(pr.createdAt)}</span>
           <span className="detail-tag">Priority: {pr.priority.charAt(0).toUpperCase() + pr.priority.slice(1)}</span>
@@ -1173,6 +1249,30 @@ const PRDetailView = ({
               </div>
               <form onSubmit={handleEditSubmit} className="modal-form">
                 <div className="form-group">
+                  <label htmlFor="edit-id" className="form-label">PR ID</label>
+                  <input
+                    type="text"
+                    id="edit-id"
+                    name="id"
+                    className="form-input"
+                    value={editForm.id}
+                    disabled
+                    style={{ backgroundColor: 'var(--gray-light)', cursor: 'not-allowed' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="edit-rfqNumber" className="form-label">RFQ Number</label>
+                  <input
+                    type="text"
+                    id="edit-rfqNumber"
+                    name="rfqNumber"
+                    className="form-input"
+                    value={editForm.rfqNumber}
+                    onChange={(e) => setEditForm({...editForm, rfqNumber: e.target.value})}
+                    placeholder="Enter RFQ number (optional)"
+                  />
+                </div>
+                <div className="form-group">
                   <label htmlFor="edit-title" className="form-label">Title *</label>
                   <input
                     type="text"
@@ -1320,6 +1420,18 @@ const CreatePRModal = ({ onClose, onCreate, darkMode, formData, setFormData }) =
               onChange={handleChange}
               required
               placeholder="Enter PR ID (e.g., PR-001)"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="rfqNumber" className="form-label">RFQ Number</label>
+            <input
+              type="text"
+              id="rfqNumber"
+              name="rfqNumber"
+              className="form-input"
+              value={formData.rfqNumber}
+              onChange={handleChange}
+              placeholder="Enter RFQ number (optional)"
             />
           </div>
           <div className="form-group">
