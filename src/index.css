@@ -171,14 +171,19 @@ body {
 }
 
 .filters-container {
+  position: sticky;
+  top: 120px;
+  z-index: 90;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
   background-color: var(--white);
-  padding: 16px;
+  padding: 20px;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--gray-light);
 }
 
 .filter-group {
@@ -1826,8 +1831,10 @@ body {
   }
   
   .filters-container {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 16px;
+    top: 100px;
+    padding: 16px;
   }
   
   .pr-grid {
