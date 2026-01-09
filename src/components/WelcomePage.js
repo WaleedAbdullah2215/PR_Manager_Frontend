@@ -15,7 +15,7 @@ const WelcomePage = ({ onEnter }) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (username === 'mohammadamir' && password === 'waleed123') {
+      if (username === process.env.REACT_APP_LOGIN_USERNAME && password === process.env.REACT_APP_LOGIN_PASSWORD) {
         onEnter('user');
       } else {
         setError('Invalid credentials. Please try again.');
@@ -83,7 +83,7 @@ const WelcomePage = ({ onEnter }) => {
                   className="brand-author"
                 >
                   <p>Designed & Built for</p>
-                  <h3>Mohammad Amir Khan</h3>
+                  <h3>{process.env.REACT_APP_DEFAULT_USER}</h3>
                 </motion.div>
               </div>
 

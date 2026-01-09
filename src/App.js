@@ -32,7 +32,7 @@ const App = () => {
     rfqNumber: '',
     priority: 'medium',
     category: 'FM/Maintenance',
-    assignee: 'Mohammad Amir Khan',
+    assignee: process.env.REACT_APP_DEFAULT_USER,
     dueDate: '',
   });
 
@@ -48,7 +48,7 @@ useEffect(() => {
   if (userMode === 'user') {
     loadPRs();
     loadActivities();
-    addToast(`Welcome back, Mohammad Amir Khan!`, 'info');
+    addToast(`Welcome back, ${process.env.REACT_APP_DEFAULT_USER}!`, 'info');
   } else if (userMode === 'visitor') {
     setPrs(SAMPLE_PRS);
     addToast(' Viewing in DEMO MODE - No changes will be saved', 'info');
@@ -81,7 +81,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-01-15',
       status: 'in-progress',
       createdAt: new Date('2025-01-01'),
-      assignee: 'Mohammad Amir Khan',
+      assignee: process.env.REACT_APP_DEFAULT_USER,
       steps: getInitialSteps().map((step, idx) => ({
         ...step,
         completed: idx < 8,
@@ -98,7 +98,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-01-20',
       status: 'in-progress',
       createdAt: new Date('2025-01-03'),
-      assignee: 'Mohammad Amir Khan',
+      assignee: process.env.REACT_APP_DEFAULT_USER,
       steps: getInitialSteps().map((step, idx) => ({
         ...step,
         completed: idx < 4,
@@ -115,7 +115,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-02-01',
       status: 'completed',
       createdAt: new Date('2024-12-20'),
-      assignee: 'Mohammad Amir Khan',
+      assignee: process.env.REACT_APP_DEFAULT_USER,
       steps: getInitialSteps().map(step => ({
         ...step,
         completed: true,
@@ -147,7 +147,7 @@ const loadPRs = async () => {
         status: 'in-progress',
         steps: getInitialSteps(),
         priority: 'medium',
-        assignee: 'Mohammad Amir Khan',
+        assignee: process.env.REACT_APP_DEFAULT_USER,
         dueDate: new Date(Date.now() + 86400000 * 7),
         category: 'Consultancy',
       },
@@ -159,7 +159,7 @@ const loadPRs = async () => {
         status: 'completed',
         steps: getInitialSteps().map(step => ({ ...step, completed: true })),
         priority: 'high',
-        assignee: 'Mohammad Amir Khan',
+        assignee: process.env.REACT_APP_DEFAULT_USER,
         dueDate: new Date(Date.now() + 86400000 * 5),
         category: 'Real Estate',
       },
@@ -262,7 +262,7 @@ const loadActivities = async () => {
         rfqNumber: '',
         priority: 'medium',
         category: 'FM/Maintenance',
-        assignee: 'Mohammad Amir Khan',
+        assignee: process.env.REACT_APP_DEFAULT_USER,
         dueDate: '',
       });
     } else {
@@ -496,7 +496,8 @@ const loadActivities = async () => {
       pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pr.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filter === 'all' || pr.status === filter;
-    return matchesSearch && matchesStatus;
+    const matchesDepartment = departmentFilter === 'all' || pr.category === departmentFilter;
+    return matchesSearch && matchesStatus && matchesDepartment;
   }).sort((a, b) => {
     if (sortBy === 'priority') {
       const priorities = { high: 3, medium: 2, low: 1 };
@@ -543,7 +544,7 @@ const loadActivities = async () => {
           <div>
             <h1 className="app-title">PR Flow Manager</h1>
             <p className="app-subtitle">
-              Personalized for Mohammad Amir Khan
+              Personalized for {process.env.REACT_APP_DEFAULT_USER}
               {isVisitorMode && <span className="demo-badge-inline"> • DEMO MODE</span>}
             </p>
           </div>
