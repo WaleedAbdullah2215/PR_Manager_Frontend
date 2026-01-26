@@ -7,6 +7,19 @@ import WelcomePage from './components/WelcomePage';
 
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// Production configuration - works without environment variables
+const CONFIG = {
+  DEFAULT_USER: 'Mohammad Amir Khan',
+  DEMO_USER: 'waleed123'
+};
+
+// Helper function to get configuration value
+const getConfig = (key) => {
+  // Try environment variable first, then fallback to config
+  const envKey = `REACT_APP_${key}`;
+  return process.env[envKey] || CONFIG[key];
+};
+
 const App = () => {
   const [userMode, setUserMode] = useState(null);
   const [isVisitorMode, setIsVisitorMode] = useState(false);
@@ -32,7 +45,7 @@ const App = () => {
     rfqNumber: '',
     priority: 'medium',
     category: 'FM/Maintenance',
-    assignee: process.env.REACT_APP_DEFAULT_USER,
+    assignee: getConfig('DEFAULT_USER'),
     dueDate: '',
   });
 
@@ -48,7 +61,7 @@ useEffect(() => {
   if (userMode === 'user') {
     loadPRs();
     loadActivities();
-    addToast(`Welcome back, ${process.env.REACT_APP_DEFAULT_USER}!`, 'info');
+    addToast(`Welcome back, ${getConfig('DEFAULT_USER')}!`, 'info');
   } else if (userMode === 'visitor') {
     setPrs(SAMPLE_PRS);
     addToast(' Viewing in DEMO MODE - No changes will be saved', 'info');
@@ -81,7 +94,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-01-15',
       status: 'in-progress',
       createdAt: new Date('2025-01-01'),
-      assignee: process.env.REACT_APP_DEFAULT_USER,
+      assignee: getConfig('DEFAULT_USER'),
       steps: getInitialSteps().map((step, idx) => ({
         ...step,
         completed: idx < 8,
@@ -98,7 +111,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-01-20',
       status: 'in-progress',
       createdAt: new Date('2025-01-03'),
-      assignee: process.env.REACT_APP_DEFAULT_USER,
+      assignee: getConfig('DEFAULT_USER'),
       steps: getInitialSteps().map((step, idx) => ({
         ...step,
         completed: idx < 4,
@@ -115,7 +128,7 @@ const SAMPLE_PRS = [
       dueDate: '2025-02-01',
       status: 'completed',
       createdAt: new Date('2024-12-20'),
-      assignee: process.env.REACT_APP_DEFAULT_USER,
+      assignee: getConfig('DEFAULT_USER'),
       steps: getInitialSteps().map(step => ({
         ...step,
         completed: true,
@@ -131,13 +144,22 @@ const loadPRs = async () => {
   }
   
   try {
+    console.log('Attempting to load PRs from API...');
     const response = await api.getAllPRs();
+    console.log('API Response:', response);
+    
     if (response.success) {
+      console.log('PRs loaded successfully:', response.data.length, 'PRs found');
       setPrs(response.data);
+    } else {
+      console.error('API returned error:', response.message);
+      addToast('Failed to load PRs from database', 'error');
+      // Don't fall back to sample PRs, keep empty array to show the issue
+      setPrs([]);
     }
   } catch (error) {
     console.error('Error loading PRs:', error);
-    addToast('Connected in offline mode', 'info');
+    addToast('Connected in offline mode - using sample data', 'info');
     const samplePRs = [
       {
         id: 'PR-001',
@@ -147,7 +169,7 @@ const loadPRs = async () => {
         status: 'in-progress',
         steps: getInitialSteps(),
         priority: 'medium',
-        assignee: process.env.REACT_APP_DEFAULT_USER,
+        assignee: getConfig('DEFAULT_USER'),
         dueDate: new Date(Date.now() + 86400000 * 7),
         category: 'Consultancy',
       },
@@ -159,7 +181,7 @@ const loadPRs = async () => {
         status: 'completed',
         steps: getInitialSteps().map(step => ({ ...step, completed: true })),
         priority: 'high',
-        assignee: process.env.REACT_APP_DEFAULT_USER,
+        assignee: getConfig('DEFAULT_USER'),
         dueDate: new Date(Date.now() + 86400000 * 5),
         category: 'Real Estate',
       },
@@ -262,7 +284,7 @@ const loadActivities = async () => {
         rfqNumber: '',
         priority: 'medium',
         category: 'FM/Maintenance',
-        assignee: process.env.REACT_APP_DEFAULT_USER,
+        assignee: getConfig('DEFAULT_USER'),
         dueDate: '',
       });
     } else {
@@ -359,7 +381,7 @@ const loadActivities = async () => {
           };
         });
     
-        const allCompleted = updatedSteps.every(s => s.completed);
+        const newStatus = getPRStatus(updatedSteps);
         
         if (updates.completed && !pr.steps.find(s => s.id === stepId).completed) {
           const stepName = pr.steps.find(s => s.id === stepId).name;
@@ -369,7 +391,7 @@ const loadActivities = async () => {
         return {
           ...pr,
           steps: updatedSteps,
-          status: allCompleted ? 'completed' : 'in-progress',
+          status: newStatus,
         };
       }));
       
@@ -421,7 +443,41 @@ const loadActivities = async () => {
 
   const getProgress = (steps) => {
     const completed = steps.filter(s => s.completed).length;
-    return Math.round((completed / steps.length) * 100);
+    const poCreatedStep = steps.find(s => s.name === 'PO Created');
+    const poCreatedIndex = steps.findIndex(s => s.name === 'PO Created');
+    
+    // If PO Created is completed, minimum progress is 100%
+    if (poCreatedStep && poCreatedStep.completed) {
+      const baseProgress = 100;
+      const remainingSteps = steps.slice(poCreatedIndex + 1);
+      const completedRemainingSteps = remainingSteps.filter(s => s.completed).length;
+      
+      // Add extra progress for steps after PO Created (each step adds ~8.33% more)
+      const extraProgress = (completedRemainingSteps / remainingSteps.length) * 20;
+      return Math.round(baseProgress + extraProgress);
+    }
+    
+    // Normal progress calculation until PO Created
+    const stepsUntilPO = steps.slice(0, poCreatedIndex + 1);
+    const completedUntilPO = Math.min(completed, stepsUntilPO.length);
+    return Math.round((completedUntilPO / stepsUntilPO.length) * 100);
+  };
+
+  const getPRStatus = (steps) => {
+    const poCreatedStep = steps.find(s => s.name === 'PO Created');
+    const allStepsCompleted = steps.every(s => s.completed);
+    
+    // If all steps are completed, it's fully completed
+    if (allStepsCompleted) {
+      return 'completed';
+    }
+    
+    // If PO Created is completed, it's considered completed (even if final steps aren't done)
+    if (poCreatedStep && poCreatedStep.completed) {
+      return 'completed';
+    }
+    
+    return 'in-progress';
   };
 
   const getStepDuration = (steps) => {
@@ -495,7 +551,10 @@ const loadActivities = async () => {
     const matchesSearch = pr.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pr.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pr.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filter === 'all' || pr.status === filter;
+    
+    // Use the enhanced status logic for filtering
+    const actualStatus = getPRStatus(pr.steps);
+    const matchesStatus = filter === 'all' || actualStatus === filter;
     const matchesDepartment = departmentFilter === 'all' || pr.category === departmentFilter;
     return matchesSearch && matchesStatus && matchesDepartment;
   }).sort((a, b) => {
@@ -544,7 +603,7 @@ const loadActivities = async () => {
           <div>
             <h1 className="app-title">PR Flow Manager</h1>
             <p className="app-subtitle">
-              Personalized for {process.env.REACT_APP_DEFAULT_USER}
+              Personalized for {getConfig('DEFAULT_USER')}
               {isVisitorMode && <span className="demo-badge-inline"> • DEMO MODE</span>}
             </p>
           </div>
@@ -634,6 +693,7 @@ const loadActivities = async () => {
             <option value="IT">IT</option>
             <option value="Finance">Finance</option>
             <option value="Consultancy">Consultancy</option>
+            <option value="Office">Office</option>
             <option value="Others">Others</option>
           </select>
           </div>
@@ -668,6 +728,8 @@ const loadActivities = async () => {
             formatDate={formatDate}
             addToast={addToast}
             getPerformanceChartData={getPerformanceChartData}
+            getProgress={getProgress}
+            getPRStatus={getPRStatus}
           />
         ) : (
           <motion.div
@@ -685,6 +747,7 @@ const loadActivities = async () => {
                   getStatusColor={getStatusColor}
                   getPriorityColor={getPriorityColor}
                   getProgress={getProgress}
+                  getPRStatus={getPRStatus}
                   index={index}
                 />
               ))
@@ -762,7 +825,7 @@ const loadActivities = async () => {
           </div>
         </div>
 
-        <AlertsSection prs={filteredPRs} formatDate={formatDate} />
+        <AlertsSection prs={filteredPRs} formatDate={formatDate} getPRStatus={getPRStatus} />
 
         <ActivityLog activities={activityLog} formatDate={formatDate} />
 
@@ -808,11 +871,12 @@ const loadActivities = async () => {
   );
 };
 
-const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, index }) => {
+const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, index, getPRStatus }) => {
   const now = new Date();
   const dueDate = pr.dueDate ? new Date(pr.dueDate) : null;
-  const isOverdue = dueDate && dueDate < now && pr.status !== 'completed';
-  const isDueSoon = dueDate && dueDate >= now && dueDate <= new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)) && pr.status !== 'completed';
+  const actualStatus = getPRStatus(pr.steps);
+  const isOverdue = dueDate && dueDate < now && actualStatus !== 'completed';
+  const isDueSoon = dueDate && dueDate >= now && dueDate <= new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000)) && actualStatus !== 'completed';
   
   let cardClass = 'pr-card';
   if (isOverdue) cardClass += ' overdue';
@@ -849,8 +913,8 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
                 ⏰ Due Soon
               </span>
             )}
-            <span className={`status-badge ${getStatusColor(pr.status)}`}>
-              {pr.status === 'in-progress' ? 'In Progress' : 'Completed'}
+            <span className={`status-badge ${getStatusColor(actualStatus)}`}>
+              {actualStatus === 'in-progress' ? 'In Progress' : 'Completed'}
             </span>
           </div>
         </div>
@@ -896,7 +960,9 @@ const PRDetailView = ({
   darkMode, 
   formatDate, 
   addToast,
-  getPerformanceChartData 
+  getPerformanceChartData,
+  getProgress,
+  getPRStatus
 }) => {
   const [activeStep, setActiveStep] = useState(null);
   const [comment, setComment] = useState('');
@@ -1329,6 +1395,7 @@ const PRDetailView = ({
                     <option value="IT">IT</option>
                     <option value="Finance">Finance</option>
                     <option value="Consultancy">Consultancy</option>
+                    <option value="Office">Office</option>
                     <option value="Others">Others</option>
                   </select>
                 </div>
@@ -1491,6 +1558,7 @@ const CreatePRModal = ({ onClose, onCreate, darkMode, formData, setFormData }) =
               <option value="IT">IT</option>
               <option value="Finance">Finance</option>
               <option value="Consultancy">Consultancy</option>
+              <option value="Office">Office</option>
               <option value="Others">Others</option>
             </select>
           </div>
@@ -1745,7 +1813,7 @@ const ActivityLog = ({ activities, formatDate }) => {
   );
 };
 
-const AlertsSection = ({ prs, formatDate }) => {
+const AlertsSection = ({ prs, formatDate, getPRStatus }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   const now = new Date();
@@ -1754,14 +1822,14 @@ const AlertsSection = ({ prs, formatDate }) => {
   const overduePRs = prs.filter(pr => 
     pr.dueDate && 
     new Date(pr.dueDate) < now && 
-    pr.status !== 'completed'
+    getPRStatus(pr.steps) !== 'completed'
   );
   
   const dueSoonPRs = prs.filter(pr => 
     pr.dueDate && 
     new Date(pr.dueDate) >= now && 
     new Date(pr.dueDate) <= threeDaysFromNow && 
-    pr.status !== 'completed'
+    getPRStatus(pr.steps) !== 'completed'
   );
 
   const totalAlerts = overduePRs.length + dueSoonPRs.length;

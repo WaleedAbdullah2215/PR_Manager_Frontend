@@ -2,6 +2,21 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './WelcomePage.css';
 
+// Production configuration - works without environment variables
+const CONFIG = {
+  DEFAULT_USER: 'Mohammad Amir Khan',
+  LOGIN_USERNAME: 'mohammadamir',
+  LOGIN_PASSWORD: 'waleed123',
+  DEMO_USER: 'waleed123'
+};
+
+// Helper function to get configuration value
+const getConfig = (key) => {
+  // Try environment variable first, then fallback to config
+  const envKey = `REACT_APP_${key}`;
+  return process.env[envKey] || CONFIG[key];
+};
+
 const WelcomePage = ({ onEnter }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
@@ -15,7 +30,13 @@ const WelcomePage = ({ onEnter }) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (username === process.env.REACT_APP_LOGIN_USERNAME && password === process.env.REACT_APP_LOGIN_PASSWORD) {
+      const expectedUsername = getConfig('LOGIN_USERNAME');
+      const expectedPassword = getConfig('LOGIN_PASSWORD');
+      
+      console.log('Expected:', expectedUsername, expectedPassword); // Debug log
+      console.log('Entered:', username, password); // Debug log
+      
+      if (username === expectedUsername && password === expectedPassword) {
         onEnter('user');
       } else {
         setError('Invalid credentials. Please try again.');
@@ -83,7 +104,7 @@ const WelcomePage = ({ onEnter }) => {
                   className="brand-author"
                 >
                   <p>Designed & Built for</p>
-                  <h3>{process.env.REACT_APP_DEFAULT_USER}</h3>
+                  <h3>{getConfig('DEFAULT_USER')}</h3>
                 </motion.div>
               </div>
 
