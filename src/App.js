@@ -29,7 +29,7 @@ const App = () => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('in-progress');
+  const [filter, setFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [toasts, setToasts] = useState([]);
@@ -144,22 +144,23 @@ const loadPRs = async () => {
   }
   
   try {
-    console.log('Attempting to load PRs from API...');
     const response = await api.getAllPRs();
-    console.log('API Response:', response);
     
     if (response.success) {
-      console.log('PRs loaded successfully:', response.data.length, 'PRs found');
       setPrs(response.data);
+      
+      if (response.data.length === 0) {
+        addToast('No PRs found in database', 'info');
+      }
     } else {
-      console.error('API returned error:', response.message);
       addToast('Failed to load PRs from database', 'error');
-      // Don't fall back to sample PRs, keep empty array to show the issue
       setPrs([]);
     }
   } catch (error) {
     console.error('Error loading PRs:', error);
-    addToast('Connected in offline mode - using sample data', 'info');
+    addToast('Backend connection failed - using sample data', 'warning');
+    
+    // Load sample PRs as fallback
     const samplePRs = [
       {
         id: 'PR-001',
@@ -192,7 +193,8 @@ const loadPRs = async () => {
 
 const loadActivities = async () => {
   try {
-    const response = await api.getAllActivities(1000, 1); // Get up to 1000 activities for client-side pagination
+    const response = await api.getAllActivities(1000, 1);
+    
     if (response.success) {
       setActivityLog(response.data);
     }
@@ -671,8 +673,8 @@ const loadActivities = async () => {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             >
-              <option value="in-progress">In Progress</option>
               <option value="all">All PRs</option>
+              <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
           </div>
@@ -886,10 +888,7 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
     <motion.div
       className={cardClass}
       onClick={onClick}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ delay: index * 0.1, duration: 0.3 }}
+      initial={false}
       whileHover={{ scale: 1.03, boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)' }}
     >
       <div className="pr-card-content">
@@ -918,8 +917,8 @@ const PRCard = ({ pr, onClick, getStatusColor, getPriorityColor, getProgress, in
             </span>
           </div>
         </div>
-      <h4 className="pr-title">{pr.title}</h4>
-      <p className="pr-description">{pr.description}</p>
+      <h4 className="pr-title" style={{color: 'black', fontSize: '18px'}}>{pr.title}</h4>
+      <p className="pr-description" style={{color: '#666', fontSize: '14px'}}>{pr.description}</p>
       <div className="pr-meta">
         <span className={`priority-badge ${getPriorityColor(pr.priority)}`}>
           {pr.priority.charAt(0).toUpperCase() + pr.priority.slice(1)}
